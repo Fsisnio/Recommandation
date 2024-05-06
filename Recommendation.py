@@ -2,86 +2,92 @@ import streamlit as st
 import pandas as pd
 import random
 
-import streamlit as st
-
-
-# Add a sidebar
-st.sidebar.subheader("YOBOU Market")
-
-# Add a link to the sidebar
-st.sidebar.markdown("[Accéder à la plateforme E-commerce](http://www.yoboumarket.com)")
-
-# Chargement des données de produits depuis un fichier Excel
+# Load data from Excel file
 data = pd.read_excel(r"data.xlsx")
 
-# Titre de l'application
+# Define CSS styles
+main_title_style = """
+    font-size: 32px;
+    font-weight: bold;
+    color: red;
+    margin-bottom: 20px;
+"""
 
-st.markdown('<h1 style="color: red;">Recommandation de paniers de produits de YOBOU Market</h1>', unsafe_allow_html=True)
-st.subheader("Cette page vous permettra de composer des paniers de produits en fonction de vos catégories de préférences et de votre budget. Les données des produits sont chargées, puis filtrées en fonction des catégories que vous sélectionnez. Ensuite, vous entrez votre budget, et l'application recommande plusieurs paniers de produits qui respectent ce budget et contiennent une variété d'articles provenant des catégories sélectionnées. Les paniers sont composés en sélectionnant aléatoirement des produits de chaque catégorie tout en respectant le budget donné. Une fois recommandés, les détails des paniers, y compris les produits, leurs prix unitaires et quantités, ainsi que le total du panier, vous sont affichés.")
-# Afficher toutes les catégories disponibles
+subheader_style = """
+    font-size: 20px;
+    margin-top: 30px;
+    margin-bottom: 10px;
+"""
+
+# Sidebar
+st.sidebar.subheader("YOBOU Market")
+st.sidebar.markdown("[Accéder à la plateforme E-commerce](http://www.yoboumarket.com)")
+
+# Main title
+st.markdown('<h1 style="{}">Recommandation de paniers de produits de YOBOU Market</h1>'.format(main_title_style), unsafe_allow_html=True)
+st.markdown("""
+    <p style="font-size: 16px; margin-bottom: 30px;">
+    Cette page vous permettra de composer des paniers de produits en fonction de vos catégories de préférences et de votre budget. 
+    Les données des produits sont chargées, puis filtrées en fonction des catégories que vous sélectionnez. 
+    Ensuite, vous entrez votre budget, et l'application recommande plusieurs paniers de produits qui respectent ce budget et contiennent une variété d'articles provenant des catégories sélectionnées. 
+    Les paniers sont composés en sélectionnant aléatoirement des produits de chaque catégorie tout en respectant le budget donné. 
+    Une fois recommandés, les détails des paniers, y compris les produits, leurs prix unitaires et quantités, ainsi que le total du panier, vous sont affichés.
+    </p>
+""", unsafe_allow_html=True)
+
+# Multiselect for selecting product categories
 categories = data['Catégorie'].unique()
-
-# Sélectionner toutes les catégories par défaut
 selected_categories = st.multiselect("Sélectionnez les catégories de produits:", categories, default=categories)
-
-# Filtrer les produits en fonction des catégories sélectionnées
 filtered_df = data[data['Catégorie'].isin(selected_categories)]
 
-
-
-# Demander le budget de l'acheteur
+# Number input for budget
 budget = st.number_input("Entrez votre budget:", min_value=0.0, step=0.01)
 
-# Fonction pour générer des paniers de produits
-def recommander_paniers(data, budget, nb_paniers=5):
-    paniers = []
+# Function to recommend baskets of products
+def recommend_baskets(data, budget, num_baskets=5):
+    baskets = []
     remaining_budget = budget
 
-    # Générer plusieurs paniers
-    for _ in range(nb_paniers):
+    for _ in range(num_baskets):
         current_budget = remaining_budget
-        current_panier = []
+        current_basket = []
 
-        # Sélectionner un produit de chaque catégorie jusqu'à ce que tous les produits soient utilisés
         for category in selected_categories:
             category_products = data[data['Catégorie'] == category]
             if not category_products.empty:
                 chosen_product = category_products.sample()
                 product_price = chosen_product['Prix'].iloc[0]
                 if product_price <= current_budget:
-                    max_quantity = min(int(current_budget / product_price), 2)  # Limiter la quantité à 10 au maximum
+                    max_quantity = min(int(current_budget / product_price), 2)
                     quantity = random.randint(1, max_quantity)
-                    current_panier.append((chosen_product['Produit'].iloc[0], product_price, quantity))
+                    current_basket.append((chosen_product['Produit'].iloc[0], product_price, quantity))
                     current_budget -= product_price * quantity
                     data = data.drop(chosen_product.index)
 
-        # Compléter le panier jusqu'à ce qu'il contienne au moins 5 éléments
-        while len(current_panier) < 5 and len(data) > 0:
+        while len(current_basket) < 5 and len(data) > 0:
             chosen_product = data.sample()
             product_price = chosen_product['Prix'].iloc[0]
             if product_price <= current_budget:
-                max_quantity = min(int(current_budget / product_price), 10)  # Limiter la quantité à 10 au maximum
+                max_quantity = min(int(current_budget / product_price), 10)
                 quantity = random.randint(1, max_quantity)
-                current_panier.append((chosen_product['Produit'].iloc[0], product_price, quantity))
+                current_basket.append((chosen_product['Produit'].iloc[0], product_price, quantity))
                 current_budget -= product_price * quantity
                 data = data.drop(chosen_product.index)
             else:
                 break
         
-        # Ajouter le panier généré à la liste des paniers
-        paniers.append(current_panier)
+        baskets.append(current_basket)
     
-    return paniers
+    return baskets
 
-# Recommender les paniers lorsque l'utilisateur clique sur le bouton
+# Recommend baskets when button is clicked
 if st.button("Recommander des paniers"):
-    paniers_recommandes = recommander_paniers(filtered_df, budget)
+    recommended_baskets = recommend_baskets(filtered_df, budget)
     st.subheader("Paniers recommandés:")
 
-    # Afficher les paniers recommandés
-    for i, panier in enumerate(paniers_recommandes):
+    for i, basket in enumerate(recommended_baskets):
         st.write(f"Panier {i+1}:")
-        total_prix = sum([produit[1] * produit[2] for produit in panier])
-        for produit in panier:
-            st.write(f"- {produit[0]} (Prix unitaire: ${produit[1]:.2f}, Quantité: {produit[2]})")
-        st.write(f"Total du panier: ${total_prix:.2f}")
+        total_price = sum([product[1] * product[2] for product in basket])
+        for product in basket:
+            st.write(f"- {product[0]} (Prix unitaire: ${product[1]:.2f}, Quantité: {product[2]})")
+        st.write(f"Total du panier: ${total_price:.2f}")
