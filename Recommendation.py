@@ -12,7 +12,7 @@ st.sidebar.subheader("YOBOU Market")
 st.sidebar.markdown("[Accéder à la plateforme E-commerce](http://www.yoboumarket.com)")
 
 # Chargement des données de produits depuis un fichier Excel
-data = pd.read_excel(r"C:\Users\DELL\Desktop\data.xlsx")
+data = pd.read_excel(r"data.xlsx")
 
 # Titre de l'application
 
